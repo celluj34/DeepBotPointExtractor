@@ -6,7 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using DeepBotPointFucker.Models;
 using Newtonsoft.Json;
 
 namespace DeepBotPointFucker
@@ -45,7 +45,7 @@ namespace DeepBotPointFucker
 
                 Log($"Sending command `{command}`.");
 
-                await SendMessage(command);
+                await SendCommand(command);
             }
             catch
             {
@@ -56,11 +56,11 @@ namespace DeepBotPointFucker
 
             try
             {
-                var registerResult = await ReceiveMessage();
+                var registerResult = await ReceiveMessage<RegisterResult>();
 
                 Log("Response received.");
 
-                if (registerResult?.Message == "success")
+                if(registerResult?.Message == "success")
                 {
                     Log("Registering with DeepBot's API was successful.");
 
@@ -77,55 +77,58 @@ namespace DeepBotPointFucker
             return false;
         }
 
-        public async Task<List<UserResult>> Download()
+        public async Task<List<User>> Download()
         {
-            var allUsers = new List<UserResult>();
+            Log("Beginning download.");
+            var allUsers = new List<User>();
             var currentOffset = 0;
             const int limit = 100;
 
-            var command = $"api|get_users|{currentOffset}|{limit}";
-
-            List<UserResult> users;
             do
             {
-                users = await GetUsers(command);
+                string command = $"api|get_users|{currentOffset}|{limit}";
+
+                var users = await GetUsers(command);
 
                 allUsers.AddRange(users);
 
                 currentOffset += users.Count;
-            } while(users.Any());
+            } while(currentOffset % limit == 0);
 
+            Log("Finished download.");
             return allUsers;
         }
 
-        private async Task<List<UserResult>> GetUsers(string command)
+        private async Task<List<User>> GetUsers(string command)
         {
             try
             {
                 Log($"Sending command `{command}`.");
 
-                await SendMessage(command);
+                await SendCommand(command);
             }
             catch
             {
                 Log("Command failed.");
 
-                return new List<UserResult>();
+                return new List<User>();
             }
 
             try
             {
-                var result = await ReceiveMessage();
+                var result = await ReceiveMessage<UserResult>();
 
                 Log("Response received.");
 
-                return JsonConvert.DeserializeObject<List<UserResult>>(result.Message);
+                return result.Message;
             }
-            catch
+            catch(Exception e)
             {
+                Log(e.Message);
+
                 Log("There was an error receiving the response.");
 
-                return new List<UserResult>();
+                return new List<User>();
             }
         }
 
@@ -134,22 +137,15 @@ namespace DeepBotPointFucker
             Console.WriteLine(message);
         }
 
-        private async Task SendMessage(string message)
+        private async Task SendCommand(string command)
         {
-            using(var memoryStream = new MemoryStream())
-            {
-                using(var writer = new StreamWriter(memoryStream, Encoding.UTF8))
-                {
-                    await writer.WriteLineAsync(message);
-                }
+            var buffer = Encoding.UTF8.GetBytes(command);
+            var arraySegment = new ArraySegment<byte>(buffer);
 
-                var arraySegment = new ArraySegment<byte>(memoryStream.ToArray());
-
-                await _socket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
-            }
+            await _socket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
-        private async Task<CommandResult> ReceiveMessage()
+        private async Task<T> ReceiveMessage<T>()
         {
             using(var memoryStream = new MemoryStream())
             {
@@ -165,32 +161,39 @@ namespace DeepBotPointFucker
 
                 if(result.MessageType != WebSocketMessageType.Text)
                 {
-                    return null;
+                    return default(T);
                 }
 
                 using(var reader = new StreamReader(memoryStream, Encoding.UTF8))
                 {
                     var message = await reader.ReadToEndAsync();
 
-                    return JsonConvert.DeserializeObject<CommandResult>(message);
+                    return JsonConvert.DeserializeObject<T>(message);
                 }
             }
         }
 
-        public void WriteResultsToFile(List<UserResult> results)
+        public void WriteResultsToFile(List<User> results)
         {
-            var ofd = new OpenFileDialog();
-            if(ofd.ShowDialog() != DialogResult.OK)
-            {
-                return;
-            }
-            
+            Log("Beginning writing results to file.");
+
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("User,Points");
 
-            var text = results.Aggregate(stringBuilder, (builder, result) => builder.AppendLine($"{result.User},{result.Points}"), builder => builder.ToString());
+            var text = results.Where(x => x.Points > 100)
+                              .OrderByDescending(x => x.Points)
+                              .Aggregate(stringBuilder, (builder, result) => builder.AppendLine($"{result.Name},{result.Points}"), builder => builder.ToString());
 
-            File.WriteAllText(ofd.FileName, text);
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "results.txt");
+
+            if(!File.Exists(filePath))
+            {
+                File.Create(filePath);
+            }
+
+            File.WriteAllText(filePath, text);
+
+            Log("Completed writing results to file.");
         }
     }
 }

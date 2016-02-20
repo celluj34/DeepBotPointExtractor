@@ -1,18 +1,18 @@
-﻿using Newtonsoft.Json;
+using System;
+using Newtonsoft.Json;
 
-namespace DeepBotPointFucker
+namespace DeepBotPointFucker.Models
 {
-    public class UserResult
+    public class User
     {
         [JsonProperty(PropertyName = "user")]
-        public string User {get;set;}
+        public string Name {get;set;}
 
         [JsonProperty(PropertyName = "points")]
         public decimal Points {get;set;}
 
-        /*
         [JsonProperty(PropertyName = "watch_time")]
-        public int WatchTime {get;set;}
+        public decimal WatchTime {get;set;}
 
         [JsonProperty(PropertyName = "vip")]
         public int Vip {get;set;}
@@ -28,6 +28,5 @@ namespace DeepBotPointFucker
 
         [JsonProperty(PropertyName = "vip_expiry")]
         public DateTime VipExpiry {get;set;}
-        */
     }
 }
