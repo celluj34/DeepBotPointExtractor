@@ -11,16 +11,49 @@ using Newtonsoft.Json;
 
 namespace DeepBotPointFucker
 {
-    public class PointDownloader
+    public interface IPointDownloader
     {
+        void Initialize();
+        Task<bool> Connect();
+        Task<List<User>> Download();
+        void WriteResultsToFile(List<User> results);
+    }
+
+    public class PointDownloader : IPointDownloader
+    {
+        private const int ApiLimit = 100;
         private readonly ClientWebSocket _socket;
+        private string _apiKey;
+        private int _minimumPointValue;
 
         public PointDownloader()
         {
             _socket = new ClientWebSocket();
         }
 
-        public async Task<bool> Connect(string apiKey)
+        #region IPointDownloader Members
+        public void Initialize()
+        {
+            _apiKey = GetValueFromConsole("Please enter your DeepBot Api Key. This is located in your master settings.",
+                                          value => new Box<string> {HasValue = !string.IsNullOrWhiteSpace(value), Value = value});
+
+            _minimumPointValue = GetValueFromConsole("Please enter the minimum number of points required for export.",
+                                                     value =>
+                                                     {
+                                                         var box = new Box<int>();
+
+                                                         int outVal;
+                                                         if(int.TryParse(value, out outVal))
+                                                         {
+                                                             box.HasValue = true;
+                                                             box.Value = outVal;
+                                                         }
+
+                                                         return box;
+                                                     });
+        }
+
+        public async Task<bool> Connect()
         {
             try
             {
@@ -41,9 +74,7 @@ namespace DeepBotPointFucker
 
             try
             {
-                var command = $"api|register|{apiKey}";
-
-                Log($"Sending command `{command}`.");
+                var command = $"api|register|{_apiKey}";
 
                 await SendCommand(command);
             }
@@ -58,8 +89,6 @@ namespace DeepBotPointFucker
             {
                 var registerResult = await ReceiveMessage<RegisterResult>();
 
-                Log("Response received.");
-
                 if(registerResult?.Message == "success")
                 {
                     Log("Registering with DeepBot's API was successful.");
@@ -69,10 +98,10 @@ namespace DeepBotPointFucker
             }
             catch
             {
-                // ignored
-            }
+                Log("Registering with DeepBot's API was not successful.");
 
-            Log("Registering with DeepBot's API was not successful.");
+                return false;
+            }
 
             return false;
         }
@@ -82,53 +111,94 @@ namespace DeepBotPointFucker
             Log("Beginning download.");
             var allUsers = new List<User>();
             var currentOffset = 0;
-            const int limit = 100;
 
             do
             {
-                string command = $"api|get_users|{currentOffset}|{limit}";
+                var command = $"api|get_users|{currentOffset}|{ApiLimit}";
 
                 var users = await GetUsers(command);
+
+                if(users == null)
+                {
+                    break;
+                }
 
                 allUsers.AddRange(users);
 
                 currentOffset += users.Count;
-            } while(currentOffset % limit == 0);
+            } while(currentOffset % ApiLimit == 0);
 
             Log("Finished download.");
+
             return allUsers;
+        }
+
+        public void WriteResultsToFile(List<User> results)
+        {
+            Log("Beginning writing results to file.");
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("User,Points");
+
+            var text = results.Where(x => x.Points >= _minimumPointValue)
+                              .OrderByDescending(x => x.Points)
+                              .Aggregate(stringBuilder, (builder, result) => builder.AppendLine($"{result.Name},{result.Points}"), builder => builder.ToString());
+
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "results.txt");
+
+            if(!File.Exists(filePath))
+            {
+                File.Create(filePath);
+            }
+
+            File.WriteAllText(filePath, text);
+
+            Log("Completed writing results to file.");
+        }
+        #endregion
+
+        private T GetValueFromConsole<T>(string initMessage, Func<string, Box<T>> handler)
+        {
+            Box<T> box;
+
+            Log(initMessage);
+
+            do
+            {
+                var value = Console.ReadLine();
+
+                box = handler(value);
+            } while(!box.HasValue);
+
+            return box.Value;
         }
 
         private async Task<List<User>> GetUsers(string command)
         {
             try
             {
-                Log($"Sending command `{command}`.");
-
                 await SendCommand(command);
             }
             catch
             {
                 Log("Command failed.");
 
-                return new List<User>();
+                return null;
             }
 
             try
             {
                 var result = await ReceiveMessage<UserResult>();
 
-                Log("Response received.");
-
                 return result.Message;
             }
             catch(Exception e)
             {
-                Log(e.Message);
-
                 Log("There was an error receiving the response.");
 
-                return new List<User>();
+                Log(e.Message);
+
+                return null;
             }
         }
 
@@ -139,6 +209,8 @@ namespace DeepBotPointFucker
 
         private async Task SendCommand(string command)
         {
+            Log($"Sending command `{command}`.");
+
             var buffer = Encoding.UTF8.GetBytes(command);
             var arraySegment = new ArraySegment<byte>(buffer);
 
@@ -157,6 +229,8 @@ namespace DeepBotPointFucker
                     memoryStream.Write(buffer.Array, buffer.Offset, result.Count);
                 } while(!result.EndOfMessage);
 
+                Log("Response received.");
+
                 memoryStream.Seek(0, SeekOrigin.Begin);
 
                 if(result.MessageType != WebSocketMessageType.Text)
@@ -171,29 +245,6 @@ namespace DeepBotPointFucker
                     return JsonConvert.DeserializeObject<T>(message);
                 }
             }
-        }
-
-        public void WriteResultsToFile(List<User> results)
-        {
-            Log("Beginning writing results to file.");
-
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("User,Points");
-
-            var text = results.Where(x => x.Points > 100)
-                              .OrderByDescending(x => x.Points)
-                              .Aggregate(stringBuilder, (builder, result) => builder.AppendLine($"{result.Name},{result.Points}"), builder => builder.ToString());
-
-            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "results.txt");
-
-            if(!File.Exists(filePath))
-            {
-                File.Create(filePath);
-            }
-
-            File.WriteAllText(filePath, text);
-
-            Log("Completed writing results to file.");
         }
     }
 }
