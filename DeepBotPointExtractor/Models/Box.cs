@@ -1,4 +1,4 @@
-namespace DeepBotPointFucker
+namespace DeepBotPointExtractor.Models
 {
     public class Box<T>
     {

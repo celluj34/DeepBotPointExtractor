@@ -1,7 +1,7 @@
 using System;
 using Newtonsoft.Json;
 
-namespace DeepBotPointFucker.Models
+namespace DeepBotPointExtractor.Models
 {
     public class User
     {

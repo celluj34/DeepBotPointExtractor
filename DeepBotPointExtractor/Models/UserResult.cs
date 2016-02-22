@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace DeepBotPointFucker.Models
+namespace DeepBotPointExtractor.Models
 {
     public class UserResult : CommandResult
     {

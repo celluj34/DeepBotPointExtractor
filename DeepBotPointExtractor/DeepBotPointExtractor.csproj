@@ -7,8 +7,8 @@
     <ProjectGuid>{0BBAD9AB-EF35-4CBC-A586-EC600D46EA8D}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DeepBotPointFucker</RootNamespace>
-    <AssemblyName>DeepBotPointFucker</AssemblyName>
+    <RootNamespace>DeepBotPointExtractor</RootNamespace>
+    <AssemblyName>DeepBotPointExtractor</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -51,7 +51,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>DeepBotPointFucker.Program</StartupObject>
+    <StartupObject>DeepBotPointExtractor.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -68,11 +68,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Box.cs" />
+    <Compile Include="Models\Box.cs" />
     <Compile Include="Models\CommandResult.cs" />
     <Compile Include="Models\RegisterResult.cs" />
     <Compile Include="Models\User.cs" />
-    <Compile Include="PointDownloader.cs" />
+    <Compile Include="Services\PointDownloadService.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Models\UserResult.cs" />

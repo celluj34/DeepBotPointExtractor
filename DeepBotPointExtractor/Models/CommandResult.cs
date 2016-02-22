@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace DeepBotPointFucker.Models
+namespace DeepBotPointExtractor.Models
 {
     public class CommandResult
     {

@@ -6,12 +6,12 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DeepBotPointFucker.Models;
+using DeepBotPointExtractor.Models;
 using Newtonsoft.Json;
 
-namespace DeepBotPointFucker
+namespace DeepBotPointExtractor.Services
 {
-    public interface IPointDownloader
+    public interface IPointDownloadService
     {
         void Initialize();
         Task<bool> Connect();
@@ -19,19 +19,19 @@ namespace DeepBotPointFucker
         void WriteResultsToFile(List<User> results);
     }
 
-    public class PointDownloader : IPointDownloader
+    public class PointDownloadService : IPointDownloadService
     {
         private const int ApiLimit = 100;
         private readonly ClientWebSocket _socket;
         private string _apiKey;
         private int _minimumPointValue;
 
-        public PointDownloader()
+        public PointDownloadService()
         {
             _socket = new ClientWebSocket();
         }
 
-        #region IPointDownloader Members
+        #region IPointDownloadService Members
         public void Initialize()
         {
             _apiKey = GetValueFromConsole("Please enter your DeepBot Api Key. This is located in your master settings.",
